@@ -872,6 +872,7 @@ _Appears in:_
 | `domain` _string_ | Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder") |  | MinLength: 1 <br />Required: \{\} <br /> |
 | `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the Config Flow (single-step flows only).<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
 | `title` _string_ | Title is the display name of the config entry in Home Assistant (also used for entity names<br />of integrations that derive them from the entry title, e.g. generic camera).<br />Changing it renames the existing entry without re-creating it. |  | MinLength: 1 <br />Optional: \{\} <br /> |
+| `entityID` _string_ | EntityID is the entity ID to assign (e.g. "camera.levanto"), so other manifests can reference it.<br />Only valid for integrations that create exactly one entity; the domain must match the entity's domain. |  | Pattern: `^[a-z0-9_]+\.[a-z0-9_]+$` <br />Optional: \{\} <br /> |
 
 
 #### HomeAssistantIntegrationStatus

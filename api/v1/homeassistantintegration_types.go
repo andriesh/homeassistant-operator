@@ -42,6 +42,12 @@ type HomeAssistantIntegrationSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +optional
 	Title string `json:"title,omitempty"`
+
+	// EntityID is the entity ID to assign (e.g. "camera.levanto"), so other manifests can reference it.
+	// Only valid for integrations that create exactly one entity; the domain must match the entity's domain.
+	// +kubebuilder:validation:Pattern=`^[a-z0-9_]+\.[a-z0-9_]+$`
+	// +optional
+	EntityID string `json:"entityID,omitempty"`
 }
 
 // IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.

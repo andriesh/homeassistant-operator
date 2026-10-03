@@ -1578,6 +1578,36 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("UpdateEntityID", func() {
+		It("Should send config/entity_registry/update with the new entity ID", func() {
+			var receivedCmd map[string]interface{}
+			upgrader := websocket.Upgrader{}
+			wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				defer func() { _ = conn.Close() }()
+
+				_ = conn.WriteJSON(map[string]interface{}{"type": "auth_required"})
+				var authMsg map[string]interface{}
+				_ = conn.ReadJSON(&authMsg)
+				_ = conn.WriteJSON(map[string]interface{}{"type": "auth_ok"})
+				_ = conn.ReadJSON(&receivedCmd)
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true, "result": map[string]interface{}{},
+				})
+			}))
+			defer wsServer.Close()
+
+			client = NewClient("ws" + strings.TrimPrefix(wsServer.URL, "http"))
+			Expect(client.UpdateEntityID(ctx, "tok", "camera.old", "camera.levanto")).To(Succeed())
+			Expect(receivedCmd).To(HaveKeyWithValue("type", "config/entity_registry/update"))
+			Expect(receivedCmd).To(HaveKeyWithValue("entity_id", "camera.old"))
+			Expect(receivedCmd).To(HaveKeyWithValue("new_entity_id", "camera.levanto"))
+		})
+	})
+
 	Describe("ConfigureBackup", func() {
 		var (
 			wsServer *httptest.Server

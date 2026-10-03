@@ -177,14 +177,8 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 			log.Info("Config entry no longer exists in HA, will re-create", "entryID", integration.Status.EntryID)
 			integration.Status.EntryID = ""
 		} else {
-			if titleErr := r.syncTitle(ctx, haClient, token, integration, entry); titleErr != nil {
-				log.Error(titleErr, "Failed to set config entry title")
-				return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
-					fmt.Sprintf("Failed to set config entry title: %v", titleErr), 30*time.Second)
-			}
-			// Entry exists and config hasn't changed — idempotent, update status
-			return r.setReadyCondition(ctx, integration, reasonIntegrationConfigured,
-				"Integration is configured and active", configHash)
+			// Entry exists and config hasn't changed — idempotent, sync title/entity ID, update status
+			return r.reconcileExistingEntry(ctx, integration, haClient, token, entry, configHash)
 		}
 	}
 
@@ -516,6 +510,74 @@ func (r *HomeAssistantIntegrationReconciler) getEntry(
 		}
 	}
 	return nil, nil
+}
+
+// reconcileExistingEntry applies spec.title and spec.entityID to an existing entry and reports Ready.
+func (r *HomeAssistantIntegrationReconciler) reconcileExistingEntry(
+	ctx context.Context,
+	integration *hav1.HomeAssistantIntegration,
+	haClient *haclient.Client,
+	token string,
+	entry *haclient.ConfigEntry,
+	configHash string,
+) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+	if err := r.syncTitle(ctx, haClient, token, integration, entry); err != nil {
+		log.Error(err, "Failed to set config entry title")
+		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+			fmt.Sprintf("Failed to set config entry title: %v", err), 30*time.Second)
+	}
+	pending, err := r.syncEntityID(ctx, haClient, token, integration, entry)
+	if err != nil {
+		log.Error(err, "Failed to set entity ID")
+		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+			fmt.Sprintf("Failed to set entity ID: %v", err), 30*time.Second)
+	}
+	result, err := r.setReadyCondition(ctx, integration, reasonIntegrationConfigured,
+		"Integration is configured and active", configHash)
+	if pending && err == nil {
+		result.RequeueAfter = 10 * time.Second
+	}
+	return result, err
+}
+
+// syncEntityID renames the entry's single entity to spec.entityID. pending is true while the
+// entity has not been registered yet (it appears shortly after the entry is set up).
+func (r *HomeAssistantIntegrationReconciler) syncEntityID(
+	ctx context.Context,
+	haClient *haclient.Client,
+	token string,
+	integration *hav1.HomeAssistantIntegration,
+	entry *haclient.ConfigEntry,
+) (pending bool, err error) {
+	wanted := integration.Spec.EntityID
+	if wanted == "" {
+		return false, nil
+	}
+	entities, err := haClient.ListEntityRegistry(ctx, token)
+	if err != nil {
+		return false, err
+	}
+	var owned []haclient.EntityRegistryEntry
+	for _, e := range entities {
+		if e.ConfigEntryID == entry.EntryID {
+			owned = append(owned, e)
+		}
+	}
+	switch {
+	case len(owned) == 0:
+		return true, nil
+	case len(owned) > 1:
+		return false, fmt.Errorf("spec.entityID requires an entry with exactly one entity, found %d", len(owned))
+	case owned[0].EntityID == wanted:
+		return false, nil
+	}
+	if err := haClient.UpdateEntityID(ctx, token, owned[0].EntityID, wanted); err != nil {
+		return false, err
+	}
+	r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
+		fmt.Sprintf("Entity ID changed from %s to %s", owned[0].EntityID, wanted))
+	return false, nil
 }
 
 // syncTitle renames the HA config entry when spec.title is set and differs from the current title.

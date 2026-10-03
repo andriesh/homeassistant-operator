@@ -110,6 +110,12 @@ spec:
                   "mqtt", "esphome", "recorder")
                 minLength: 1
                 type: string
+              entityID:
+                description: |-
+                  EntityID is the entity ID to assign (e.g. "camera.levanto"), so other manifests can reference it.
+                  Only valid for integrations that create exactly one entity; the domain must match the entity's domain.
+                pattern: ^[a-z0-9_]+\.[a-z0-9_]+$
+                type: string
               homeAssistantRef:
                 description: HomeAssistantRef references the HomeAssistant instance
                   to configure

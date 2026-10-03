@@ -70,7 +70,10 @@ To rename the config entry (and the entity names derived from it), set `spec.tit
 spec:
   domain: generic
   title: Levanto camera
+  entityID: camera.levanto
 ```
+
+`spec.entityID` renames the entry's entity so other manifests can reference a stable ID. It requires an integration that creates exactly one entity, and the domain prefix (`camera.`) must match. The entity appears shortly after the entry is created, so the operator retries until it exists.
 
 To change the integration configuration, update `spec.configuration`. The operator detects the hash change, removes the existing config entry, and runs a new Config Flow.
 

@@ -1387,6 +1387,35 @@ func (c *Client) UpdateConfigEntryTitle(ctx context.Context, token, entryID, tit
 	return err
 }
 
+// EntityRegistryEntry is one row of config/entity_registry/list.
+type EntityRegistryEntry struct {
+	EntityID      string `json:"entity_id"`
+	ConfigEntryID string `json:"config_entry_id"`
+	Platform      string `json:"platform"`
+}
+
+// ListEntityRegistry returns the entity registry via WebSocket.
+func (c *Client) ListEntityRegistry(ctx context.Context, token string) ([]EntityRegistryEntry, error) {
+	result, err := c.SendWebSocketCommand(ctx, token, "config/entity_registry/list", nil)
+	if err != nil {
+		return nil, err
+	}
+	var entries []EntityRegistryEntry
+	if err := json.Unmarshal(result, &entries); err != nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "failed to parse entity registry", Err: err}
+	}
+	return entries, nil
+}
+
+// UpdateEntityID renames an entity via config/entity_registry/update.
+func (c *Client) UpdateEntityID(ctx context.Context, token, entityID, newEntityID string) error {
+	_, err := c.SendWebSocketCommand(ctx, token, "config/entity_registry/update", map[string]interface{}{
+		"entity_id":     entityID,
+		"new_entity_id": newEntityID,
+	})
+	return err
+}
+
 // IsComponentLoaded checks if a specific component/integration is loaded in Home Assistant.
 // Common components: "automation", "script", "scene", "homeassistant", "http", "mqtt", etc.
 // Returns true if component is loaded, false otherwise.
