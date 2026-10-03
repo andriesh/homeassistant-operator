@@ -554,6 +554,10 @@ type LocationConfig struct {
 	// If not specified, uses spec.timezone
 	// +optional
 	TimeZone string `json:"timeZone,omitempty"`
+
+	// Country is the ISO 3166-1 alpha-2 country code (e.g., "US", "PL")
+	// +optional
+	Country string `json:"country,omitempty"`
 }
 
 // BootstrapCredentials references a Secret containing admin credentials

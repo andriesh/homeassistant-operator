@@ -57,6 +57,7 @@ type CoreConfigRequest struct {
 	UnitSystem   string  `json:"unit_system,omitempty"` // "metric" or "us_customary"
 	Currency     string  `json:"currency,omitempty"`
 	TimeZone     string  `json:"time_zone,omitempty"`
+	Country      string  `json:"country,omitempty"`
 }
 
 // AnalyticsRequest represents POST /api/onboarding/analytics request
