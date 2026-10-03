@@ -108,14 +108,15 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				if r.URL.Path == "/api/config/config_entries/flow" {
 					handler, _ := reqBody["handler"].(string)
 
-					if handler == "generic" {
+					switch handler {
+					case "generic":
 						_ = json.NewEncoder(w).Encode(map[string]interface{}{
 							"flow_id": "flow-test-generic",
 							"type":    "form",
 							"step_id": "user",
 						})
 						return
-					} else if handler == "unsupported" {
+					case "unsupported":
 						_ = json.NewEncoder(w).Encode(map[string]interface{}{
 							"flow_id": "flow-test-unsupported",
 							"type":    "form",
@@ -142,7 +143,8 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				// Handle SubmitConfigFlow
 				flowID := strings.TrimPrefix(r.URL.Path, "/api/config/config_entries/flow/")
 
-				if flowID == "flow-test-generic" {
+				switch flowID {
+				case "flow-test-generic":
 					if _, ok := reqBody["stream_source"]; ok {
 						_ = json.NewEncoder(w).Encode(map[string]interface{}{
 							"flow_id": "flow-test-generic",
@@ -164,7 +166,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 						})
 						return
 					}
-				} else if flowID == "flow-test-unsupported" {
+				case "flow-test-unsupported":
 					_ = json.NewEncoder(w).Encode(map[string]interface{}{
 						"flow_id": "flow-test-unsupported",
 						"type":    "form",
@@ -467,7 +469,9 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 
 			Eventually(func(g Gomega) {
 				updated := &hav1.HomeAssistantIntegration{}
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-multi-step", Namespace: namespace}, updated)).To(Succeed())
+				g.Expect(k8sClient.Get(
+					ctx, types.NamespacedName{Name: "int-multi-step", Namespace: namespace}, updated,
+				)).To(Succeed())
 				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
@@ -502,7 +506,9 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 
 			Eventually(func(g Gomega) {
 				updated := &hav1.HomeAssistantIntegration{}
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-unsupported-step", Namespace: namespace}, updated)).To(Succeed())
+				g.Expect(k8sClient.Get(
+					ctx, types.NamespacedName{Name: "int-unsupported-step", Namespace: namespace}, updated,
+				)).To(Succeed())
 				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
