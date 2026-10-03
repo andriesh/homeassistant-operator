@@ -575,6 +575,10 @@ func (r *HomeAssistantIntegrationReconciler) syncEntityID(
 	if err := haClient.UpdateEntityID(ctx, token, owned[0].EntityID, wanted); err != nil {
 		return false, err
 	}
+	// Without a reload the running entity can keep publishing its state under the old ID.
+	if err := haClient.ReloadConfigEntry(ctx, token, entry.EntryID); err != nil {
+		return false, fmt.Errorf("entity renamed but config entry reload failed: %w", err)
+	}
 	r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
 		fmt.Sprintf("Entity ID changed from %s to %s", owned[0].EntityID, wanted))
 	return false, nil

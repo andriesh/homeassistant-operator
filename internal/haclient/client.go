@@ -1387,6 +1387,12 @@ func (c *Client) UpdateConfigEntryTitle(ctx context.Context, token, entryID, tit
 	return err
 }
 
+// ReloadConfigEntry reloads a config entry so its entities are re-added under their current registry IDs.
+func (c *Client) ReloadConfigEntry(ctx context.Context, token, entryID string) error {
+	return c.postConfig(ctx, token,
+		"/api/config/config_entries/entry/"+url.PathEscape(entryID)+"/reload", map[string]interface{}{})
+}
+
 // EntityRegistryEntry is one row of config/entity_registry/list.
 type EntityRegistryEntry struct {
 	EntityID      string `json:"entity_id"`

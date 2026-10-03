@@ -1578,6 +1578,20 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("ReloadConfigEntry", func() {
+		It("Should POST to the entry reload endpoint", func() {
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Expect(r.Method).To(Equal(http.MethodPost))
+				Expect(r.URL.Path).To(Equal("/api/config/config_entries/entry/abc123/reload"))
+				Expect(r.Header.Get("Authorization")).To(Equal("Bearer tok"))
+				_, _ = w.Write([]byte(`{"require_restart": false}`))
+			}))
+
+			client = NewClient(server.URL)
+			Expect(client.ReloadConfigEntry(ctx, "tok", "abc123")).To(Succeed())
+		})
+	})
+
 	Describe("UpdateEntityID", func() {
 		It("Should send config/entity_registry/update with the new entity ID", func() {
 			var receivedCmd map[string]interface{}
