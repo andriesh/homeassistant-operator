@@ -557,6 +557,7 @@ type LocationConfig struct {
 
 	// Country is the ISO 3166-1 alpha-2 country code (e.g., "US", "PL")
 	// +optional
+	// +kubebuilder:validation:Pattern=`^[A-Z]{2}$`
 	Country string `json:"country,omitempty"`
 }
 
