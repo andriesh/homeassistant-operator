@@ -104,6 +104,9 @@ type FlowResponse struct {
 	Result     json.RawMessage `json:"result"`
 	Version    int             `json:"version"`
 	DataSchema []FlowField     `json:"data_schema,omitempty"`
+
+	// Errors holds field -> error key (e.g. base: cannot_connect) when HA re-shows a form after rejecting input.
+	Errors map[string]interface{} `json:"errors,omitempty"`
 }
 
 // FlowField represents a field in a config flow step

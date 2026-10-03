@@ -1548,6 +1548,36 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("UpdateConfigEntryTitle", func() {
+		It("Should send config_entries/update with entry_id and title", func() {
+			var receivedCmd map[string]interface{}
+			upgrader := websocket.Upgrader{}
+			wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				defer func() { _ = conn.Close() }()
+
+				_ = conn.WriteJSON(map[string]interface{}{"type": "auth_required"})
+				var authMsg map[string]interface{}
+				_ = conn.ReadJSON(&authMsg)
+				_ = conn.WriteJSON(map[string]interface{}{"type": "auth_ok"})
+				_ = conn.ReadJSON(&receivedCmd)
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true, "result": nil,
+				})
+			}))
+			defer wsServer.Close()
+
+			client = NewClient("ws" + strings.TrimPrefix(wsServer.URL, "http"))
+			Expect(client.UpdateConfigEntryTitle(ctx, "test-token", "abc123", "Levanto")).To(Succeed())
+			Expect(receivedCmd).To(HaveKeyWithValue("type", "config_entries/update"))
+			Expect(receivedCmd).To(HaveKeyWithValue("entry_id", "abc123"))
+			Expect(receivedCmd).To(HaveKeyWithValue("title", "Levanto"))
+		})
+	})
+
 	Describe("ConfigureBackup", func() {
 		var (
 			wsServer *httptest.Server

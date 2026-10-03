@@ -35,6 +35,13 @@ type HomeAssistantIntegrationSpec struct {
 	// Keys are field names from the data_schema; values are plain text or Secret references.
 	// +optional
 	Configuration map[string]IntegrationValue `json:"configuration,omitempty"`
+
+	// Title is the display name of the config entry in Home Assistant (also used for entity names
+	// of integrations that derive them from the entry title, e.g. generic camera).
+	// Changing it renames the existing entry without re-creating it.
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Title string `json:"title,omitempty"`
 }
 
 // IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.

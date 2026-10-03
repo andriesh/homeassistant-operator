@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -167,15 +168,20 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// --- VERIFY EXISTING ENTRY ---
 	if integration.Status.EntryID != "" {
-		exists, verifyErr := r.verifyEntryExists(ctx, haClient, token, integration.Status.EntryID)
+		entry, verifyErr := r.getEntry(ctx, haClient, token, integration.Status.EntryID)
 		if verifyErr != nil {
 			log.Error(verifyErr, "Failed to verify config entry existence, will retry")
 			return r.setFailedCondition(ctx, integration, reasonIntegrationHANotReady,
 				fmt.Sprintf("Failed to verify config entry: %v", verifyErr), 30*time.Second)
-		} else if !exists {
+		} else if entry == nil {
 			log.Info("Config entry no longer exists in HA, will re-create", "entryID", integration.Status.EntryID)
 			integration.Status.EntryID = ""
 		} else {
+			if titleErr := r.syncTitle(ctx, haClient, token, integration, entry); titleErr != nil {
+				log.Error(titleErr, "Failed to set config entry title")
+				return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+					fmt.Sprintf("Failed to set config entry title: %v", titleErr), 30*time.Second)
+			}
 			// Entry exists and config hasn't changed — idempotent, update status
 			return r.setReadyCondition(ctx, integration, reasonIntegrationConfigured,
 				"Integration is configured and active", configHash)
@@ -279,10 +285,11 @@ func (r *HomeAssistantIntegrationReconciler) submitConfigFlow(
 	for stepCount := 0; stepCount < maxSteps && submitResp.Type == "form"; stepCount++ {
 		if submitResp.StepID != "user_confirm" {
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
-				fmt.Sprintf("Operator does not know how to satisfy multi-step form for %s (got step_id: %s)",
-					integration.Spec.Domain, submitResp.StepID))
+				fmt.Sprintf("Operator does not know how to satisfy multi-step form for %s (got step_id: %s)%s",
+					integration.Spec.Domain, submitResp.StepID, flowErrorDetail(submitResp)))
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
-				fmt.Sprintf("Unsupported form step: %s", submitResp.StepID), 30*time.Second)
+				fmt.Sprintf("Unsupported form step: %s%s", submitResp.StepID, flowErrorDetail(submitResp)),
+				30*time.Second)
 		}
 		submitResp, submitErr = haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID, confirmStepData(submitResp))
 		if submitErr != nil {
@@ -312,6 +319,20 @@ func confirmStepData(form *haclient.FlowResponse) map[string]interface{} {
 		}
 	}
 	return map[string]interface{}{"confirmed": true}
+}
+
+// flowErrorDetail formats the validation errors HA attached to a re-shown form, e.g.
+// " (HA errors: base=cannot_connect)". Returns "" when there are none.
+func flowErrorDetail(form *haclient.FlowResponse) string {
+	if len(form.Errors) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(form.Errors))
+	for k, v := range form.Errors {
+		parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+	}
+	sortStrings(parts)
+	return fmt.Sprintf(" (HA errors: %s)", strings.Join(parts, ", "))
 }
 
 // handleDeletion removes the config entry from HA (best-effort)
@@ -479,22 +500,41 @@ func sortStrings(s []string) {
 	}
 }
 
-// verifyEntryExists checks if the given entry ID still exists in HA
-func (r *HomeAssistantIntegrationReconciler) verifyEntryExists(
+// getEntry returns the config entry with the given ID, or nil if it no longer exists in HA.
+func (r *HomeAssistantIntegrationReconciler) getEntry(
 	ctx context.Context,
 	haClient *haclient.Client,
 	token, entryID string,
-) (bool, error) {
+) (*haclient.ConfigEntry, error) {
 	entries, err := haClient.ListConfigEntries(ctx, token)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	for _, e := range entries {
-		if e.EntryID == entryID {
-			return true, nil
+	for i := range entries {
+		if entries[i].EntryID == entryID {
+			return &entries[i], nil
 		}
 	}
-	return false, nil
+	return nil, nil
+}
+
+// syncTitle renames the HA config entry when spec.title is set and differs from the current title.
+func (r *HomeAssistantIntegrationReconciler) syncTitle(
+	ctx context.Context,
+	haClient *haclient.Client,
+	token string,
+	integration *hav1.HomeAssistantIntegration,
+	entry *haclient.ConfigEntry,
+) error {
+	if integration.Spec.Title == "" || entry.Title == integration.Spec.Title {
+		return nil
+	}
+	if err := haClient.UpdateConfigEntryTitle(ctx, token, entry.EntryID, integration.Spec.Title); err != nil {
+		return err
+	}
+	r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
+		fmt.Sprintf("Config entry title set to %q", integration.Spec.Title))
+	return nil
 }
 
 // findEntryID finds the first entry ID for the given domain

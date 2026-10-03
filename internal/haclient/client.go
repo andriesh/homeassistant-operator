@@ -1378,6 +1378,15 @@ func (c *Client) RemoveConfigEntry(ctx context.Context, token, entryID string) e
 	return c.deleteConfig(ctx, token, "/api/config/config_entries/entry/"+url.PathEscape(entryID))
 }
 
+// UpdateConfigEntryTitle renames a config entry via the config_entries/update WebSocket command.
+func (c *Client) UpdateConfigEntryTitle(ctx context.Context, token, entryID, title string) error {
+	_, err := c.SendWebSocketCommand(ctx, token, "config_entries/update", map[string]interface{}{
+		"entry_id": entryID,
+		"title":    title,
+	})
+	return err
+}
+
 // IsComponentLoaded checks if a specific component/integration is loaded in Home Assistant.
 // Common components: "automation", "script", "scene", "homeassistant", "http", "mqtt", etc.
 // Returns true if component is loaded, false otherwise.

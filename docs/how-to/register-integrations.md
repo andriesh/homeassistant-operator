@@ -64,6 +64,14 @@ spec:
 
 ## Reconfiguring
 
+To rename the config entry (and the entity names derived from it), set `spec.title`. It is applied to the existing entry without re-creating it:
+
+```yaml
+spec:
+  domain: generic
+  title: Levanto camera
+```
+
 To change the integration configuration, update `spec.configuration`. The operator detects the hash change, removes the existing config entry, and runs a new Config Flow.
 
 ```sh

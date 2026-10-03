@@ -871,6 +871,7 @@ _Appears in:_
 | `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to configure |  | Required: \{\} <br /> |
 | `domain` _string_ | Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder") |  | MinLength: 1 <br />Required: \{\} <br /> |
 | `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the Config Flow (single-step flows only).<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
+| `title` _string_ | Title is the display name of the config entry in Home Assistant (also used for entity names<br />of integrations that derive them from the entry title, e.g. generic camera).<br />Changing it renames the existing entry without re-creating it. |  | MinLength: 1 <br />Optional: \{\} <br /> |
 
 
 #### HomeAssistantIntegrationStatus
