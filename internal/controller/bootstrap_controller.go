@@ -244,6 +244,10 @@ func (r *HomeAssistantReconciler) buildCoreConfigRequest(
 		req.TimeZone = ha.Spec.Timezone
 	}
 
+	if loc.Country != "" {
+		req.Country = loc.Country
+	}
+
 	return req
 }
 

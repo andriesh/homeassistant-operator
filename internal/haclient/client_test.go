@@ -340,6 +340,7 @@ var _ = Describe("HAClient", func() {
 				Expect(req.Latitude).To(Equal(52.2297))
 				Expect(req.Longitude).To(Equal(21.0122))
 				Expect(req.UnitSystem).To(Equal("metric"))
+				Expect(req.Country).To(Equal("PL"))
 
 				w.WriteHeader(http.StatusOK)
 			}))
@@ -350,6 +351,7 @@ var _ = Describe("HAClient", func() {
 				Latitude:     52.2297,
 				Longitude:    21.0122,
 				UnitSystem:   "metric",
+				Country:      "PL",
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
