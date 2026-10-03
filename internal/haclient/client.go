@@ -51,11 +51,24 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 // Returns nil if healthy, ErrorTypeNotReady if not ready, ErrorTypeBanned if IP is banned.
 // Note: 401 Unauthorized is considered healthy (HA is running but needs onboarding)
 func (c *Client) CheckHealth(ctx context.Context) error {
+	return c.checkHealth(ctx, "")
+}
+
+// CheckHealthWithToken is CheckHealth with a Bearer token, so HA does not log
+// (and eventually IP-ban) the request as an invalid authentication attempt.
+func (c *Client) CheckHealthWithToken(ctx context.Context, token string) error {
+	return c.checkHealth(ctx, token)
+}
+
+func (c *Client) checkHealth(ctx context.Context, token string) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/", nil)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
 	req.Header.Set("User-Agent", userAgent)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

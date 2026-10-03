@@ -253,6 +253,29 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 				fmt.Sprintf("Failed to submit config flow: %v", submitErr), 30*time.Second)
 		}
+		// Handle multi-step flows
+		maxSteps := 5
+		for stepCount := 0; stepCount < maxSteps && submitResp.Type == "form"; stepCount++ {
+			if submitResp.StepID == "user_confirm" {
+				submitResp, submitErr = haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID, map[string]interface{}{
+					"confirmed": true,
+				})
+				if submitErr != nil {
+					log.Error(submitErr, "Failed to submit config flow confirmation step")
+					r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+						fmt.Sprintf("Failed to submit confirmation step for %s: %v", integration.Spec.Domain, submitErr))
+					return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+						fmt.Sprintf("Failed to submit confirmation step: %v", submitErr), 30*time.Second)
+				}
+			} else {
+				// Unsupported form step
+				r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+					fmt.Sprintf("Operator does not know how to satisfy multi-step form for %s (got step_id: %s)", integration.Spec.Domain, submitResp.StepID))
+				return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+					fmt.Sprintf("Unsupported form step: %s", submitResp.StepID), 30*time.Second)
+			}
+		}
+
 		if submitResp.Type != "create_entry" {
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
 				fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))

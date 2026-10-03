@@ -94,6 +94,18 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("CheckHealthWithToken", func() {
+		It("Should send the Bearer token", func() {
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Expect(r.Header.Get("Authorization")).To(Equal("Bearer llat"))
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			client = NewClient(server.URL)
+			Expect(client.CheckHealthWithToken(ctx, "llat")).To(Succeed())
+		})
+	})
+
 	Describe("CheckAPIReady", func() {
 		It("Should return nil for 401 Unauthorized (API routes loaded)", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
