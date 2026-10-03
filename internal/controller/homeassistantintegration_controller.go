@@ -284,9 +284,7 @@ func (r *HomeAssistantIntegrationReconciler) submitConfigFlow(
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 				fmt.Sprintf("Unsupported form step: %s", submitResp.StepID), 30*time.Second)
 		}
-		submitResp, submitErr = haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID, map[string]interface{}{
-			"confirmed": true,
-		})
+		submitResp, submitErr = haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID, confirmStepData(submitResp))
 		if submitErr != nil {
 			logErr.Error(submitErr, "Failed to submit config flow confirmation step")
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
@@ -303,6 +301,17 @@ func (r *HomeAssistantIntegrationReconciler) submitConfigFlow(
 			fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
 	}
 	return r.handleCreateEntry(ctx, integration, configHash, submitResp, log)
+}
+
+// confirmStepData builds the payload for a user_confirm step. HA renamed the field from
+// "confirmed" to "confirmed_ok" in newer releases, so prefer whatever the form advertises.
+func confirmStepData(form *haclient.FlowResponse) map[string]interface{} {
+	for _, f := range form.DataSchema {
+		if f.Name == "confirmed_ok" || f.Name == "confirmed" {
+			return map[string]interface{}{f.Name: true}
+		}
+	}
+	return map[string]interface{}{"confirmed": true}
 }
 
 // handleDeletion removes the config entry from HA (best-effort)
