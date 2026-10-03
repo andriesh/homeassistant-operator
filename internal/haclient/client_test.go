@@ -1592,7 +1592,7 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
-	Describe("UpdateEntityID", func() {
+	Describe("UpdateEntity", func() {
 		It("Should send config/entity_registry/update with the new entity ID", func() {
 			var receivedCmd map[string]interface{}
 			upgrader := websocket.Upgrader{}
@@ -1615,10 +1615,11 @@ var _ = Describe("HAClient", func() {
 			defer wsServer.Close()
 
 			client = NewClient("ws" + strings.TrimPrefix(wsServer.URL, "http"))
-			Expect(client.UpdateEntityID(ctx, "tok", "camera.old", "camera.levanto")).To(Succeed())
+			Expect(client.UpdateEntity(ctx, "tok", "camera.old", "camera.levanto", "Levanto Camera")).To(Succeed())
 			Expect(receivedCmd).To(HaveKeyWithValue("type", "config/entity_registry/update"))
 			Expect(receivedCmd).To(HaveKeyWithValue("entity_id", "camera.old"))
 			Expect(receivedCmd).To(HaveKeyWithValue("new_entity_id", "camera.levanto"))
+			Expect(receivedCmd).To(HaveKeyWithValue("name", "Levanto Camera"))
 		})
 	})
 

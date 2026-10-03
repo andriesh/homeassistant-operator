@@ -512,7 +512,7 @@ func (r *HomeAssistantIntegrationReconciler) getEntry(
 	return nil, nil
 }
 
-// reconcileExistingEntry applies spec.title and spec.entityID to an existing entry and reports Ready.
+	// reconcileExistingEntry applies the desired title and entity metadata and reports Ready.
 func (r *HomeAssistantIntegrationReconciler) reconcileExistingEntry(
 	ctx context.Context,
 	integration *hav1.HomeAssistantIntegration,
@@ -527,7 +527,7 @@ func (r *HomeAssistantIntegrationReconciler) reconcileExistingEntry(
 		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 			fmt.Sprintf("Failed to set config entry title: %v", err), 30*time.Second)
 	}
-	pending, err := r.syncEntityID(ctx, haClient, token, integration, entry)
+	pending, err := r.syncEntity(ctx, haClient, token, integration, entry)
 	if err != nil {
 		log.Error(err, "Failed to set entity ID")
 		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
@@ -541,17 +541,17 @@ func (r *HomeAssistantIntegrationReconciler) reconcileExistingEntry(
 	return result, err
 }
 
-// syncEntityID renames the entry's single entity to spec.entityID. pending is true while the
-// entity has not been registered yet (it appears shortly after the entry is set up).
-func (r *HomeAssistantIntegrationReconciler) syncEntityID(
+// syncEntity applies entity ID and friendly-name overrides. pending is true until HA registers it.
+func (r *HomeAssistantIntegrationReconciler) syncEntity(
 	ctx context.Context,
 	haClient *haclient.Client,
 	token string,
 	integration *hav1.HomeAssistantIntegration,
 	entry *haclient.ConfigEntry,
 ) (pending bool, err error) {
-	wanted := integration.Spec.EntityID
-	if wanted == "" {
+	wantedID := integration.Spec.EntityID
+	wantedName := integration.Spec.EntityName
+	if wantedID == "" && wantedName == "" {
 		return false, nil
 	}
 	entities, err := haClient.ListEntityRegistry(ctx, token)
@@ -568,19 +568,36 @@ func (r *HomeAssistantIntegrationReconciler) syncEntityID(
 	case len(owned) == 0:
 		return true, nil
 	case len(owned) > 1:
-		return false, fmt.Errorf("spec.entityID requires an entry with exactly one entity, found %d", len(owned))
-	case owned[0].EntityID == wanted:
+		return false, fmt.Errorf("spec.entityID/entityName requires an entry with exactly one entity, found %d", len(owned))
+	case (wantedID == "" || owned[0].EntityID == wantedID) &&
+		(wantedName == "" || owned[0].Name == wantedName):
 		return false, nil
 	}
-	if err := haClient.UpdateEntityID(ctx, token, owned[0].EntityID, wanted); err != nil {
+	newID := ""
+	if wantedID != "" && owned[0].EntityID != wantedID {
+		newID = wantedID
+	}
+	newName := ""
+	if wantedName != "" && owned[0].Name != wantedName {
+		newName = wantedName
+	}
+	if err := haClient.UpdateEntity(ctx, token, owned[0].EntityID, newID, newName); err != nil {
 		return false, err
 	}
-	// Without a reload the running entity can keep publishing its state under the old ID.
-	if err := haClient.ReloadConfigEntry(ctx, token, entry.EntryID); err != nil {
-		return false, fmt.Errorf("entity renamed but config entry reload failed: %w", err)
+	if newID != "" {
+		// Without a reload the running entity can keep publishing its state under the old ID.
+		if err := haClient.ReloadConfigEntry(ctx, token, entry.EntryID); err != nil {
+			return false, fmt.Errorf("entity renamed but config entry reload failed: %w", err)
+		}
 	}
-	r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
-		fmt.Sprintf("Entity ID changed from %s to %s", owned[0].EntityID, wanted))
+	if newID != "" {
+		r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
+			fmt.Sprintf("Entity ID changed from %s to %s", owned[0].EntityID, newID))
+	}
+	if newName != "" {
+		r.emitEvent(integration, corev1.EventTypeNormal, eventIntegrationReconfigured,
+			fmt.Sprintf("Entity name set to %q", newName))
+	}
 	return false, nil
 }
 

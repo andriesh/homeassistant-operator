@@ -36,8 +36,7 @@ type HomeAssistantIntegrationSpec struct {
 	// +optional
 	Configuration map[string]IntegrationValue `json:"configuration,omitempty"`
 
-	// Title is the display name of the config entry in Home Assistant (also used for entity names
-	// of integrations that derive them from the entry title, e.g. generic camera).
+	// Title is the display name of the config entry in Home Assistant.
 	// Changing it renames the existing entry without re-creating it.
 	// +kubebuilder:validation:MinLength=1
 	// +optional
@@ -48,6 +47,12 @@ type HomeAssistantIntegrationSpec struct {
 	// +kubebuilder:validation:Pattern=`^[a-z0-9_]+\.[a-z0-9_]+$`
 	// +optional
 	EntityID string `json:"entityID,omitempty"`
+
+	// EntityName is the friendly name to show for the integration's entity in Home Assistant.
+	// Only valid for integrations that create exactly one entity.
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	EntityName string `json:"entityName,omitempty"`
 }
 
 // IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.

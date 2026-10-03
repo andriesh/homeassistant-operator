@@ -71,9 +71,10 @@ spec:
   domain: generic
   title: Levanto camera
   entityID: camera.levanto
+  entityName: Levanto Camera
 ```
 
-`spec.entityID` renames the entry's entity so other manifests can reference a stable ID. It requires an integration that creates exactly one entity, and the domain prefix (`camera.`) must match. The entity appears shortly after the entry is created, so the operator retries until it exists.
+`spec.entityID` renames the entry's entity so other manifests can reference a stable ID. `spec.entityName` sets its friendly name, which is what Home Assistant displays. Both require an integration that creates exactly one entity. The entity appears shortly after the entry is created, so the operator retries until it exists.
 
 To change the integration configuration, update `spec.configuration`. The operator detects the hash change, removes the existing config entry, and runs a new Config Flow.
 

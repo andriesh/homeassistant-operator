@@ -1398,6 +1398,7 @@ type EntityRegistryEntry struct {
 	EntityID      string `json:"entity_id"`
 	ConfigEntryID string `json:"config_entry_id"`
 	Platform      string `json:"platform"`
+	Name          string `json:"name"`
 }
 
 // ListEntityRegistry returns the entity registry via WebSocket.
@@ -1413,12 +1414,18 @@ func (c *Client) ListEntityRegistry(ctx context.Context, token string) ([]Entity
 	return entries, nil
 }
 
-// UpdateEntityID renames an entity via config/entity_registry/update.
-func (c *Client) UpdateEntityID(ctx context.Context, token, entityID, newEntityID string) error {
-	_, err := c.SendWebSocketCommand(ctx, token, "config/entity_registry/update", map[string]interface{}{
-		"entity_id":     entityID,
-		"new_entity_id": newEntityID,
-	})
+// UpdateEntity updates an entity's registry ID and/or friendly name.
+func (c *Client) UpdateEntity(
+	ctx context.Context, token, entityID, newEntityID, name string,
+) error {
+	data := map[string]interface{}{"entity_id": entityID}
+	if newEntityID != "" {
+		data["new_entity_id"] = newEntityID
+	}
+	if name != "" {
+		data["name"] = name
+	}
+	_, err := c.SendWebSocketCommand(ctx, token, "config/entity_registry/update", data)
 	return err
 }
 
