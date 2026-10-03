@@ -681,9 +681,18 @@ func (c *Client) SetAnalytics(ctx context.Context, accessToken string, enabled b
 // This is the 4th and final onboarding step required by Home Assistant.
 // Without it, non-admin users are blocked from accessing the websocket API.
 func (c *Client) CompleteIntegrationStep(ctx context.Context, accessToken string) error {
+	// HA's schema requires client_id and redirect_uri for this step.
+	clientID := c.baseURL + "/"
+	body, err := json.Marshal(map[string]string{
+		"client_id":    clientID,
+		"redirect_uri": clientID + "?auth_callback=1",
+	})
+	if err != nil {
+		return &Error{Type: ErrorTypeHTTP, Message: "failed to marshal request", Err: err}
+	}
 	httpReq, err := http.NewRequestWithContext(
 		ctx, "POST", c.baseURL+"/api/onboarding/integration",
-		bytes.NewReader([]byte("{}")),
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}

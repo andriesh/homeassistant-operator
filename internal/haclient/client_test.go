@@ -106,6 +106,21 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("CompleteIntegrationStep", func() {
+		It("Should send client_id and redirect_uri required by HA", func() {
+			var body map[string]string
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Expect(json.NewDecoder(r.Body).Decode(&body)).To(Succeed())
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			client = NewClient(server.URL)
+			Expect(client.CompleteIntegrationStep(ctx, "tok")).To(Succeed())
+			Expect(body).To(HaveKeyWithValue("client_id", server.URL+"/"))
+			Expect(body).To(HaveKey("redirect_uri"))
+		})
+	})
+
 	Describe("CheckAPIReady", func() {
 		It("Should return nil for 401 Unauthorized (API routes loaded)", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
